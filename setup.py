@@ -8,6 +8,5 @@ setup(name='minGPT',
       license='MIT',
       install_requires=[
             'torch',
-            'https://github.com/Lightning-AI/lightning/archive/refs/heads/master.zip',
       ],
 )
