@@ -166,6 +166,7 @@ def main():
 
     model.train()
     iter_num = 0
+    iter_dt = 0
     iter_time = time.time()
     data_iter = iter(train_loader)
     while True:
