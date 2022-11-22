@@ -104,7 +104,7 @@ class CharDataset(Dataset):
 
 def main():
 
-    lite = LightningLite(accelerator="cuda", devices=1, precision="bf16")
+    lite = LightningLite(accelerator="cuda", devices=1, precision=16)
     lite.launch()
 
     # get default config and overrides from the command line, if any
