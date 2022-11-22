@@ -22,7 +22,6 @@ from lightning_lite.lite import LightningLite
 def get_default_config():
     C = CN()
     # device to train on
-    C.device = 'auto'
     # dataloder parameters
     C.num_workers = 4
     # optimizer parameters
@@ -110,7 +109,6 @@ def main():
     # get default config and overrides from the command line, if any
     config = get_config()
     config.merge_from_args(sys.argv[1:])
-    print(config)
     setup_logging(config)
     seed_everything(config.system.seed)
 
@@ -122,6 +120,8 @@ def main():
     config.model.vocab_size = train_dataset.get_vocab_size()
     config.model.block_size = train_dataset.get_block_size()
     config.model.model_type = 'gpt2'
+
+    print(config)
 
     # setup the model and optimizer
     model = GPT(config.model)
@@ -153,7 +153,6 @@ def main():
         except StopIteration:
             data_iter = iter(train_loader)
             batch = next(data_iter)
-        # batch = [t.to(device) for t in batch]
         x, y = batch
 
         # forward the model
