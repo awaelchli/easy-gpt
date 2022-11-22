@@ -15,7 +15,9 @@ from mingpt.model import GPT
 # from mingpt.trainer import Trainer
 from mingpt.utils import set_seed, setup_logging, CfgNode as CN
 
-# -----------------------------------------------------------------------------
+from lightning_lite import seed_everything
+from lightning_lite.lite import LightningLite
+
 
 def get_default_config():
     C = CN()
@@ -102,6 +104,8 @@ class CharDataset(Dataset):
 
 def main():
 
+    lite = LightningLite()
+
     # get default config and overrides from the command line, if any
     config = get_config()
     config.merge_from_args(sys.argv[1:])
@@ -118,41 +122,12 @@ def main():
     config.model.block_size = train_dataset.get_block_size()
     config.model.model_type = 'gpt2'
     model = GPT(config.model)
-
-    # construct the trainer object
-    # trainer = Trainer(config.trainer, model, train_dataset)
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-
-    model = model.to(device)
-
-    # # iteration callback
-    # def batch_end_callback(trainer):
-
-    #     if trainer.iter_num % 10 == 0:
-    #         print(f"iter_dt {trainer.iter_dt * 1000:.2f}ms; iter {trainer.iter_num}: train loss {trainer.loss.item():.5f}")
-
-    #     if trainer.iter_num % 500 == 0:
-    #         # evaluate both the train and test score
-    #         model.eval()
-    #         with torch.no_grad():
-    #             # sample from the model...
-    #             context = "O God, O God!"
-    #             x = torch.tensor([train_dataset.stoi[s] for s in context], dtype=torch.long)[None,...].to(trainer.device)
-    #             y = model.generate(x, 500, temperature=1.0, do_sample=True, top_k=10)[0]
-    #             completion = ''.join([train_dataset.itos[int(i)] for i in y])
-    #             print(completion)
-    #         # save the latest model
-    #         print("saving model")
-    #         ckpt_path = os.path.join(config.system.work_dir, "model.pt")
-    #         torch.save(model.state_dict(), ckpt_path)
-    #         # revert model to training mode
-    #         model.train()
-
-    # trainer.set_callback('on_batch_end', batch_end_callback)
-
-
-    # setup the optimizer
     optimizer = model.configure_optimizers(config.trainer)
+
+    # device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
+    # model = model.to(device)
+    model, optimizer = lite.setup(model, optimizer)
 
     # setup the dataloader
     train_loader = DataLoader(
@@ -163,6 +138,8 @@ def main():
         batch_size=config.trainer.batch_size,
         num_workers=config.trainer.num_workers,
     )
+
+    train_loader = lite.setup_dataloaders(train_loader)
 
     model.train()
     iter_num = 0
@@ -177,7 +154,7 @@ def main():
         except StopIteration:
             data_iter = iter(train_loader)
             batch = next(data_iter)
-        batch = [t.to(device) for t in batch]
+        # batch = [t.to(device) for t in batch]
         x, y = batch
 
         # forward the model
@@ -185,7 +162,7 @@ def main():
 
         # backprop and update the parameters
         model.zero_grad(set_to_none=True)
-        loss.backward()
+        lite.backward(loss)
         torch.nn.utils.clip_grad_norm_(model.parameters(), config.trainer.grad_norm_clip)
         optimizer.step()
 
