@@ -13,7 +13,7 @@ from torch.utils.data.dataloader import DataLoader
 
 from mingpt.model import GPT
 # from mingpt.trainer import Trainer
-from mingpt.utils import set_seed, setup_logging, CfgNode as CN
+from mingpt.utils import setup_logging, CfgNode as CN
 
 from lightning_lite import seed_everything
 from lightning_lite.lite import LightningLite
