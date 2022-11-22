@@ -112,7 +112,7 @@ def main():
     config.merge_from_args(sys.argv[1:])
     print(config)
     setup_logging(config)
-    set_seed(config.system.seed)
+    seed_everything(config.system.seed)
 
     # construct the training dataset
     text = open('data/tinyshakespeare.txt', 'r').read() # don't worry we won't run out of file handles
