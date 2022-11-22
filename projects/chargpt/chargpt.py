@@ -188,6 +188,9 @@ def main():
         torch.nn.utils.clip_grad_norm_(model.parameters(), config.trainer.grad_norm_clip)
         optimizer.step()
 
+        if iter_num % 10 == 0:
+            print(f"iter_dt {iter_dt * 1000:.2f}ms; iter {iter_num}: train loss {loss.item():.5f}")
+
         # self.trigger_callbacks('on_batch_end')
         iter_num += 1
         tnow = time.time()
