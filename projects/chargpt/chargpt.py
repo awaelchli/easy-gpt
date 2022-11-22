@@ -1,8 +1,6 @@
 """
 Trains a character-level language model.
 """
-
-import os
 import sys
 
 import time
@@ -12,7 +10,6 @@ from torch.utils.data import Dataset
 from torch.utils.data.dataloader import DataLoader
 
 from mingpt.model import GPT
-# from mingpt.trainer import Trainer
 from mingpt.utils import setup_logging, CfgNode as CN
 
 from lightning_lite import seed_everything
@@ -55,7 +52,6 @@ def get_config():
 
     return C
 
-# -----------------------------------------------------------------------------
 
 class CharDataset(Dataset):
     """
@@ -119,7 +115,7 @@ def main():
     # construct the model
     config.model.vocab_size = train_dataset.get_vocab_size()
     config.model.block_size = train_dataset.get_block_size()
-    config.model.model_type = 'gpt2-medium'
+    config.model.model_type = 'gpt2'
 
     print(config)
 
