@@ -104,7 +104,8 @@ class CharDataset(Dataset):
 
 def main():
 
-    lite = LightningLite()
+    lite = LightningLite(accelerator="cuda", devices=1, precision="bf16")
+    lite.launch()
 
     # get default config and overrides from the command line, if any
     config = get_config()
@@ -121,12 +122,10 @@ def main():
     config.model.vocab_size = train_dataset.get_vocab_size()
     config.model.block_size = train_dataset.get_block_size()
     config.model.model_type = 'gpt2'
+
+    # setup the model and optimizer
     model = GPT(config.model)
     optimizer = model.configure_optimizers(config.trainer)
-
-    # device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-
-    # model = model.to(device)
     model, optimizer = lite.setup(model, optimizer)
 
     # setup the dataloader
@@ -169,7 +168,6 @@ def main():
         if iter_num % 10 == 0:
             print(f"iter_dt {iter_dt * 1000:.2f}ms; iter {iter_num}: train loss {loss.item():.5f}")
 
-        # self.trigger_callbacks('on_batch_end')
         iter_num += 1
         tnow = time.time()
         iter_dt = tnow - iter_time
