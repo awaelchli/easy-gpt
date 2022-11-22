@@ -191,7 +191,7 @@ def main():
         # self.trigger_callbacks('on_batch_end')
         iter_num += 1
         tnow = time.time()
-        iter_dt = tnow - self.iter_time
+        iter_dt = tnow - iter_time
         iter_time = tnow
 
         # termination conditions
