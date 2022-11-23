@@ -150,9 +150,9 @@ def main():
     data_iter = iter(train_loader)
 
 
-    print("model on gpu")
-    while True:
-        pass
+    # print("model on gpu")
+    # while True:
+    #     pass
 
     while True:
 
