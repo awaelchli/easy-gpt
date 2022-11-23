@@ -11,9 +11,10 @@ from torch.utils.data.dataloader import DataLoader
 
 from mingpt.model import GPT
 from mingpt.utils import setup_logging, CfgNode as CN
-
+import functools
 from lightning_lite import seed_everything
 from lightning_lite.lite import LightningLite
+from lightning_lite.strategies.fsdp import FSDPStrategy
 
 
 def get_default_config():
@@ -98,8 +99,10 @@ class CharDataset(Dataset):
 # -----------------------------------------------------------------------------
 
 def main():
+    from torch.distributed.fsdp.wrap import default_auto_wrap_policy
+    auto_wrap_policy = functools.partial(default_auto_wrap_policy, min_num_params=1e6)
 
-    lite = LightningLite(accelerator="cuda", devices=2, precision=16, strategy="fsdp")
+    lite = LightningLite(accelerator="cuda", devices=2, precision=16, strategy=FSDPStrategy(auto_wrap_policy=auto_wrap_policy))
     lite.launch()
 
     # get default config and overrides from the command line, if any
