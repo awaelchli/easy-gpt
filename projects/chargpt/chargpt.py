@@ -123,6 +123,7 @@ def main():
     model = GPT(config.model)
     optimizer = model.configure_optimizers(config.trainer)
     model, optimizer = lite.setup(model, optimizer)
+    print('setup')
 
     # setup the dataloader
     train_loader = DataLoader(
@@ -135,6 +136,7 @@ def main():
     )
 
     train_loader = lite.setup_dataloaders(train_loader)
+    print('setup2')
 
     model.train()
     iter_num = 0
