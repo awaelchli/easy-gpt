@@ -105,7 +105,7 @@ def main():
 
     # TODO: precision 16 and cpu offload hangs
     # TODO: error messaging for cpu-offload + wrap policy
-    lite = LightningLite(accelerator="cuda", devices=4, precision="bf16", strategy=FSDPStrategy(cpu_offload=CPUOffload(offload_params=True)))
+    lite = LightningLite(accelerator="cuda", devices=4, precision="bf16", strategy=FSDPStrategy(auto_wrap_policy=auto_wrap_policy)) # cpu_offload=CPUOffload(offload_params=True)))
     lite.launch()
 
     # get default config and overrides from the command line, if any
