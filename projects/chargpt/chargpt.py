@@ -123,7 +123,6 @@ def main():
     model = GPT(config.model)
     optimizer = model.configure_optimizers(config.trainer)
     model, optimizer = lite.setup(model, optimizer)
-    print('setup')
 
     # setup the dataloader
     train_loader = DataLoader(
@@ -136,7 +135,6 @@ def main():
     )
 
     train_loader = lite.setup_dataloaders(train_loader)
-    print('setup2')
 
     model.train()
     iter_num = 0
@@ -147,10 +145,13 @@ def main():
 
         # fetch the next batch (x, y) and re-init iterator if needed
         try:
+            print('next')
             batch = next(data_iter)
         except StopIteration:
             data_iter = iter(train_loader)
             batch = next(data_iter)
+
+        print('batch')
         x, y = batch
 
         # forward the model
