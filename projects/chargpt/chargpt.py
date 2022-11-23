@@ -105,7 +105,7 @@ def main():
 
     # TODO: precision 16 and cpu offload hangs
     # TODO: error messaging for cpu-offload + wrap policy
-    lite = LightningLite(accelerator="cuda", devices=4, precision=32, strategy=FSDPStrategy(cpu_offload=CPUOffload(offload_params=True)))
+    lite = LightningLite(accelerator="cuda", devices=4, precision="bf16", strategy=FSDPStrategy(cpu_offload=CPUOffload(offload_params=True)))
     lite.launch()
 
     # get default config and overrides from the command line, if any
@@ -123,7 +123,7 @@ def main():
     config.model.block_size = train_dataset.get_block_size()
     config.model.model_type = 'gpt2-xl'
 
-    print(config)
+    lite.print(config)
 
     # setup the model and optimizer
     with lite.sharded_model():
