@@ -101,8 +101,9 @@ class CharDataset(Dataset):
 def main():
     from torch.distributed.fsdp.wrap import size_based_auto_wrap_policy
     auto_wrap_policy = functools.partial(size_based_auto_wrap_policy, min_num_params=1e6)
+    from torch.distributed.fsdp import CPUOffload
 
-    lite = LightningLite(accelerator="cuda", devices=4, precision=16, strategy="ddp") #FSDPStrategy(auto_wrap_policy=auto_wrap_policy))
+    lite = LightningLite(accelerator="cuda", devices=4, precision=16, strategy=FSDPStrategy(auto_wrap_policy=auto_wrap_policy, cpu_offload=CPUOffload(offload_params=True)))
     lite.launch()
 
     # get default config and overrides from the command line, if any
