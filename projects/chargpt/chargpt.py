@@ -14,7 +14,7 @@ from mingpt.utils import setup_logging, CfgNode as CN
 import functools
 from lightning_lite import seed_everything
 from lightning_lite.lite import LightningLite
-from lightning_lite.strategies.fsdp import FSDPStrategy
+from lightning_lite.strategies import FSDPStrategy, DeepSpeedStrategy
 
 
 def get_default_config():
@@ -102,7 +102,7 @@ def main():
     from torch.distributed.fsdp.wrap import size_based_auto_wrap_policy
     auto_wrap_policy = functools.partial(size_based_auto_wrap_policy, min_num_params=1e6)
 
-    lite = LightningLite(accelerator="cuda", devices=4, precision=16, strategy=FSDPStrategy(auto_wrap_policy=auto_wrap_policy))
+    lite = LightningLite(accelerator="cuda", devices=4, precision=16, strategy=DeepSpeedStrategy(stage=3))
     lite.launch()
 
     # get default config and overrides from the command line, if any
@@ -125,11 +125,12 @@ def main():
     # setup the model and optimizer
     with lite.sharded_model():
         model = GPT(config.model)
-    model = lite.setup_module(model)
+    # model = lite.setup_module(model)
     # TODO: support multiple param groups for FSDP
-    # optimizer = model.configure_optimizers(config.trainer)
-    optimizer = torch.optim.AdamW(model.parameters(), lr=config.trainer.learning_rate, betas=config.trainer.betas)
-    optimizer = lite.setup_optimizers(optimizer)
+    optimizer = model.configure_optimizers(config.trainer)
+    model, optimizer = lite.setup(model, optimizer)
+    # optimizer = torch.optim.AdamW(model.parameters(), lr=config.trainer.learning_rate, betas=config.trainer.betas)
+    # optimizer = lite.setup_optimizers(optimizer)
 
     # setup the dataloader
     train_loader = DataLoader(
