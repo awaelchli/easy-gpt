@@ -103,6 +103,8 @@ def main():
     auto_wrap_policy = functools.partial(size_based_auto_wrap_policy, min_num_params=1e6)
     from torch.distributed.fsdp import CPUOffload
 
+    # TODO: precision 16 and cpu offload hangs
+    # TODO: error messaging for cpu-offload + wrap policy
     lite = LightningLite(accelerator="cuda", devices=4, precision=32, strategy=FSDPStrategy(cpu_offload=CPUOffload(offload_params=True)))
     lite.launch()
 
@@ -119,7 +121,7 @@ def main():
     # construct the model
     config.model.vocab_size = train_dataset.get_vocab_size()
     config.model.block_size = train_dataset.get_block_size()
-    config.model.model_type = 'gpt2-medium'
+    config.model.model_type = 'gpt2-large'
 
     print(config)
 
