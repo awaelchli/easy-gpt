@@ -127,7 +127,7 @@ def main():
     # setup the dataloader
     train_loader = DataLoader(
         train_dataset,
-        sampler=torch.utils.data.RandomSampler(train_dataset, replacement=True, num_samples=int(1e10)),
+        # sampler=torch.utils.data.RandomSampler(train_dataset, replacement=True, num_samples=int(1e10)),
         shuffle=False,
         pin_memory=True,
         batch_size=config.trainer.batch_size,
@@ -148,6 +148,7 @@ def main():
             print('next')
             batch = next(data_iter)
         except StopIteration:
+            print("stop")
             data_iter = iter(train_loader)
             batch = next(data_iter)
 
