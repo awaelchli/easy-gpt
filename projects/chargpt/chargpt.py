@@ -99,7 +99,7 @@ class CharDataset(Dataset):
 
 def main():
 
-    lite = LightningLite(accelerator="cuda", devices=2, precision=16, strategy="ddp")
+    lite = LightningLite(accelerator="cuda", devices=2, precision=16, strategy="fsdp")
     lite.launch()
 
     # get default config and overrides from the command line, if any
@@ -120,9 +120,11 @@ def main():
     print(config)
 
     # setup the model and optimizer
-    model = GPT(config.model)
+    with lite.sharded_model():
+        model = GPT(config.model)
+    model = lite.setup_module(model)
     optimizer = model.configure_optimizers(config.trainer)
-    model, optimizer = lite.setup(model, optimizer)
+    optimizer = lite.setup_optimizers(optimizer)
 
     # setup the dataloader
     train_loader = DataLoader(
@@ -145,14 +147,11 @@ def main():
 
         # fetch the next batch (x, y) and re-init iterator if needed
         try:
-            print('next')
             batch = next(data_iter)
         except StopIteration:
-            print("stop")
             data_iter = iter(train_loader)
             batch = next(data_iter)
 
-        print('batch')
         x, y = batch
 
         # forward the model
