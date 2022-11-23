@@ -126,7 +126,7 @@ def main():
     # setup the model and optimizer
     with lite.sharded_model():
         model = GPT(config.model)
-    model = lite.setup_module(model)
+    model = lite.setup_module(model, move_to_device=False)
     # TODO: support multiple param groups for FSDP
     # optimizer = model.configure_optimizers(config.trainer)
     optimizer = torch.optim.AdamW(model.parameters(), lr=config.trainer.learning_rate, betas=config.trainer.betas)
