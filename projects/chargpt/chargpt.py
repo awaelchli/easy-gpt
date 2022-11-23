@@ -148,6 +148,12 @@ def main():
     iter_dt = 0
     iter_time = time.time()
     data_iter = iter(train_loader)
+
+
+    print("model on gpu")
+    while True:
+        pass
+
     while True:
 
         # fetch the next batch (x, y) and re-init iterator if needed
