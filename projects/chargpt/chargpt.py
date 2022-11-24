@@ -94,37 +94,6 @@ trainer_config = TrainerConfig(
 )
 
 
-
-
-def get_config():
-    config = CN()
-
-    # system
-    config.system = CN()
-    config.system.seed = 3407
-
-    # data
-    # config.data = CN()
-    # config.data.block_size = 128
-
-    # model
-    config.model = GPT.get_default_config()
-
-
-    # trainer
-    config.trainer = CN()
-    config.trainer.num_workers = 4
-    # optimizer parameters
-    config.trainer.max_iters = None
-    config.trainer.batch_size = 1
-    config.trainer.learning_rate = 3e-4
-    config.trainer.betas = (0.9, 0.95)
-    config.trainer.weight_decay = 0.1 # only applied on matmul weights
-    config.trainer.grad_norm_clip = 1.0
-
-    return config
-
-
 class CharDataset(Dataset):
     """
     Emits batches of characters
@@ -163,8 +132,6 @@ class CharDataset(Dataset):
 
 
 def main():
-    # get default config and overrides from the command line, if any
-    # config = get_config()
     seed_everything(trainer_config.seed)
 
     auto_wrap_policy = functools.partial(size_based_auto_wrap_policy, min_num_params=1e6)
