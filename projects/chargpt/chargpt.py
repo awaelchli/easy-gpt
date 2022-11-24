@@ -62,7 +62,6 @@ class TrainerConfig:
     block_size: int
     num_workers: int
     batch_size: int
-    batch_size: int
     learning_rate: float
     betas: Tuple[int]
     weight_decay: float
@@ -84,11 +83,14 @@ model_config = GPTConfig(
 
 
 trainer_config = TrainerConfig(
-    batch_size = 1
-    learning_rate = 3e-4
-    betas = (0.9, 0.95)
-    weight_decay = 0.1 # only applied on matmul weights
-    grad_norm_clip = 1.0
+    num_workers = 4,
+    max_iters = -1,
+    block_size = 128,
+    batch_size = 1,
+    learning_rate = 3e-4,
+    betas = (0.9, 0.95),
+    weight_decay = 0.1, # only applied on matmul weights
+    grad_norm_clip = 1.0,
 )
 
 
@@ -238,7 +240,7 @@ def main():
         iter_time = tnow
 
         # termination conditions
-        if trainer_config.max_iters is not None and iter_num >= config.trainer.max_iters:
+        if trainer_config.max_iters != -1 and iter_num >= trainer_config.max_iters:
             break
 
 
