@@ -15,41 +15,35 @@ import functools
 from lightning_lite import seed_everything
 from lightning_lite.lite import LightningLite
 from lightning_lite.strategies.fsdp import FSDPStrategy
+from torch.distributed.fsdp.wrap import size_based_auto_wrap_policy
+from torch.distributed.fsdp import CPUOffload
 
-
-def get_default_config():
-    C = CN()
-    # device to train on
-    # dataloder parameters
-    C.num_workers = 4
-    # optimizer parameters
-    C.max_iters = None
-    C.batch_size = 1
-    C.learning_rate = 3e-4
-    C.betas = (0.9, 0.95)
-    C.weight_decay = 0.1 # only applied on matmul weights
-    C.grad_norm_clip = 1.0
-    return C
 
 def get_config():
-
     C = CN()
 
     # system
     C.system = CN()
     C.system.seed = 3407
-    C.system.work_dir = './out/chargpt'
 
     # data
-    C.data = CharDataset.get_default_config()
+    C.data = CN()
+    C.data.block_size = 128
 
     # model
     C.model = GPT.get_default_config()
     C.model.model_type = 'gpt-mini'
 
     # trainer
-    C.trainer = get_default_config()
-    C.trainer.learning_rate = 5e-4 # the model we're using is so small that we can go a bit faster
+    C.trainer = CN()
+    C.trainer.num_workers = 4
+    # optimizer parameters
+    C.trainer.max_iters = None
+    C.trainer.batch_size = 1
+    C.trainer.learning_rate = 3e-4
+    C.trainer.betas = (0.9, 0.95)
+    C.trainer.weight_decay = 0.1 # only applied on matmul weights
+    C.trainer.grad_norm_clip = 1.0
 
     return C
 
@@ -58,12 +52,6 @@ class CharDataset(Dataset):
     """
     Emits batches of characters
     """
-
-    @staticmethod
-    def get_default_config():
-        C = CN()
-        C.block_size = 128
-        return C
 
     def __init__(self, config, data):
         self.config = config
@@ -96,23 +84,17 @@ class CharDataset(Dataset):
         y = torch.tensor(dix[1:], dtype=torch.long)
         return x, y
 
-# -----------------------------------------------------------------------------
 
 def main():
-    from torch.distributed.fsdp.wrap import size_based_auto_wrap_policy
-    auto_wrap_policy = functools.partial(size_based_auto_wrap_policy, min_num_params=1e6)
-    from torch.distributed.fsdp import CPUOffload
+    # get default config and overrides from the command line, if any
+    config = get_config()
+    seed_everything(config.system.seed)
 
+    auto_wrap_policy = functools.partial(size_based_auto_wrap_policy, min_num_params=1e6)
     # TODO: precision 16 and cpu offload hangs
     # TODO: error messaging for cpu-offload + wrap policy
     lite = LightningLite(accelerator="cuda", devices=4, precision=16, strategy=FSDPStrategy(auto_wrap_policy=auto_wrap_policy)) # cpu_offload=CPUOffload(offload_params=True)))
     lite.launch()
-
-    # get default config and overrides from the command line, if any
-    config = get_config()
-    config.merge_from_args(sys.argv[1:])
-    setup_logging(config)
-    seed_everything(config.system.seed)
 
     # construct the training dataset
     text = open('data/tinyshakespeare.txt', 'r').read() # don't worry we won't run out of file handles
@@ -129,13 +111,12 @@ def main():
     with lite.sharded_model():
         model = GPT(config.model)
     model = lite.setup_module(model)
-    print("model", [p.device for p in model.parameters()])
+
     # TODO: support multiple param groups for FSDP
     # optimizer = model.configure_optimizers(config.trainer)
     optimizer = torch.optim.AdamW(model.parameters(), lr=config.trainer.learning_rate, betas=config.trainer.betas)
     optimizer = lite.setup_optimizers(optimizer)
 
-    print("optimizers", [p.device for p in model.parameters()])
 
     # setup the dataloader
     train_loader = DataLoader(
@@ -156,8 +137,6 @@ def main():
     data_iter = iter(train_loader)
 
     while True:
-
-        # fetch the next batch (x, y) and re-init iterator if needed
         try:
             batch = next(data_iter)
         except StopIteration:
@@ -176,7 +155,7 @@ def main():
         optimizer.step()
 
         if iter_num % 10 == 0:
-            print(f"iter_dt {iter_dt * 1000:.2f}ms; iter {iter_num}: train loss {loss.item():.5f}")
+            lite.print(f"iter_dt {iter_dt * 1000:.2f}ms; iter {iter_num}: train loss {loss.item():.5f}")
 
         iter_num += 1
         tnow = time.time()
