@@ -1,10 +1,9 @@
 """
 Trains a character-level language model.
 """
-import sys
-
+from dataclasses import dataclass
 import time
-
+from typing import Optional, Tuple
 import torch
 from torch.utils.data import Dataset
 from torch.utils.data.dataloader import DataLoader
@@ -19,33 +18,109 @@ from torch.distributed.fsdp.wrap import size_based_auto_wrap_policy
 from torch.distributed.fsdp import CPUOffload
 
 
+@dataclass
+class GPTConfig:
+    model_type: str
+    vocab_size: int
+    block_size: int
+    embd_pdrop: float =  0.1
+    resid_pdrop: float =  0.1
+    attn_pdrop: float =  0.1
+    n_layer: Optional[int] = None
+    n_head: Optional[int] = None
+    n_embd:  Optional[int] = None
+
+    def __post_init__(self):
+        type_given = self.model_type is not None
+        params_given = all(self.n_layer is not None, self.n_head is not None, self.n_embd is not None)
+        assert type_given ^ params_given
+        if type_given:
+            # translate from model_type to detailed configuration
+            values = {
+                # names follow the huggingface naming conventions
+                # GPT-1
+                'openai-gpt':   dict(n_layer=12, n_head=12, n_embd=768),  # 117M params
+                # GPT-2 configs
+                'gpt2':         dict(n_layer=12, n_head=12, n_embd=768),  # 124M params
+                'gpt2-medium':  dict(n_layer=24, n_head=16, n_embd=1024), # 350M params
+                'gpt2-large':   dict(n_layer=36, n_head=20, n_embd=1280), # 774M params
+                'gpt2-xl':      dict(n_layer=48, n_head=25, n_embd=1600), # 1558M params
+                # Gophers
+                'gopher-44m':   dict(n_layer=8, n_head=16, n_embd=512),
+                # (there are a number more...)
+                # I made these tiny models up
+                'gpt-mini':     dict(n_layer=6, n_head=6, n_embd=192),
+                'gpt-micro':    dict(n_layer=4, n_head=4, n_embd=128),
+                'gpt-nano':     dict(n_layer=3, n_head=3, n_embd=48),
+            }[self.model_type]
+            self.n_layer=values["n_layer"]
+            self.n_head=values["n_head"]
+            self.n_embd=values["n_embd"]
+
+@dataclass
+class TrainerConfig:
+    block_size: int
+    num_workers: int
+    batch_size: int
+    batch_size: int
+    learning_rate: float
+    betas: Tuple[int]
+    weight_decay: float
+    grad_norm_clip: float
+    seed: int = 1
+    max_iters: int = -1
+
+
+
+
+model_config = GPTConfig(
+    model_type = 'gpt2-xl',
+    vocab_size = None,
+    block_size =  128,
+    embd_pdrop = 0.1,
+    resid_pdrop = 0.1,
+    attn_pdrop = 0.1,
+)
+
+
+trainer_config = TrainerConfig(
+    batch_size = 1
+    learning_rate = 3e-4
+    betas = (0.9, 0.95)
+    weight_decay = 0.1 # only applied on matmul weights
+    grad_norm_clip = 1.0
+)
+
+
+
+
 def get_config():
-    C = CN()
+    config = CN()
 
     # system
-    C.system = CN()
-    C.system.seed = 3407
+    config.system = CN()
+    config.system.seed = 3407
 
     # data
-    C.data = CN()
-    C.data.block_size = 128
+    # config.data = CN()
+    # config.data.block_size = 128
 
     # model
-    C.model = GPT.get_default_config()
-    C.model.model_type = 'gpt-mini'
+    config.model = GPT.get_default_config()
+
 
     # trainer
-    C.trainer = CN()
-    C.trainer.num_workers = 4
+    config.trainer = CN()
+    config.trainer.num_workers = 4
     # optimizer parameters
-    C.trainer.max_iters = None
-    C.trainer.batch_size = 1
-    C.trainer.learning_rate = 3e-4
-    C.trainer.betas = (0.9, 0.95)
-    C.trainer.weight_decay = 0.1 # only applied on matmul weights
-    C.trainer.grad_norm_clip = 1.0
+    config.trainer.max_iters = None
+    config.trainer.batch_size = 1
+    config.trainer.learning_rate = 3e-4
+    config.trainer.betas = (0.9, 0.95)
+    config.trainer.weight_decay = 0.1 # only applied on matmul weights
+    config.trainer.grad_norm_clip = 1.0
 
-    return C
+    return config
 
 
 class CharDataset(Dataset):
@@ -53,8 +128,8 @@ class CharDataset(Dataset):
     Emits batches of characters
     """
 
-    def __init__(self, config, data):
-        self.config = config
+    def __init__(self, data, block_size):
+        self.block_size = block_size
 
         chars = sorted(list(set(data)))
         data_size, vocab_size = len(data), len(chars)
@@ -69,14 +144,14 @@ class CharDataset(Dataset):
         return self.vocab_size
 
     def get_block_size(self):
-        return self.config.block_size
+        return self.block_size
 
     def __len__(self):
-        return len(self.data) - self.config.block_size
+        return len(self.data) - self.block_size
 
     def __getitem__(self, idx):
         # grab a chunk of (block_size + 1) characters from the data
-        chunk = self.data[idx:idx + self.config.block_size + 1]
+        chunk = self.data[idx:idx + self.block_size + 1]
         # encode every character to an integer
         dix = [self.stoi[s] for s in chunk]
         # return as tensors
@@ -87,8 +162,8 @@ class CharDataset(Dataset):
 
 def main():
     # get default config and overrides from the command line, if any
-    config = get_config()
-    seed_everything(config.system.seed)
+    # config = get_config()
+    seed_everything(trainer_config.seed)
 
     auto_wrap_policy = functools.partial(size_based_auto_wrap_policy, min_num_params=1e6)
     # TODO: precision 16 and cpu offload hangs
@@ -98,34 +173,34 @@ def main():
 
     # construct the training dataset
     text = open('data/tinyshakespeare.txt', 'r').read() # don't worry we won't run out of file handles
-    train_dataset = CharDataset(config.data, text)
+    train_dataset = CharDataset(text, block_size=model_config.block_size)
 
     # construct the model
-    config.model.vocab_size = train_dataset.get_vocab_size()
-    config.model.block_size = train_dataset.get_block_size()
-    config.model.model_type = 'gpt2-xl'
+    model_config.vocab_size = train_dataset.get_vocab_size()
 
-    lite.print(config)
+    lite.print(model_config)
+    lite.print(trainer_config)
 
     # setup the model and optimizer
     with lite.sharded_model():
-        model = GPT(config.model)
+        model = GPT(model_config)
     model = lite.setup_module(model)
 
     # TODO: support multiple param groups for FSDP
     # optimizer = model.configure_optimizers(config.trainer)
-    optimizer = torch.optim.AdamW(model.parameters(), lr=config.trainer.learning_rate, betas=config.trainer.betas)
+    optimizer = torch.optim.AdamW(model.parameters(), lr=trainer_config.learning_rate, betas=trainer_config.betas)
     optimizer = lite.setup_optimizers(optimizer)
 
 
     # setup the dataloader
     train_loader = DataLoader(
         train_dataset,
+        # TODO: fix this in Lite
         # sampler=torch.utils.data.RandomSampler(train_dataset, replacement=True, num_samples=int(1e10)),
-        shuffle=False,
+        # shuffle=True,
         pin_memory=True,
-        batch_size=config.trainer.batch_size,
-        num_workers=config.trainer.num_workers,
+        batch_size=trainer_config.batch_size,
+        num_workers=trainer_config.num_workers,
     )
 
     train_loader = lite.setup_dataloaders(train_loader)
@@ -151,7 +226,7 @@ def main():
         # backprop and update the parameters
         model.zero_grad(set_to_none=True)
         lite.backward(loss)
-        torch.nn.utils.clip_grad_norm_(model.parameters(), config.trainer.grad_norm_clip)
+        torch.nn.utils.clip_grad_norm_(model.parameters(), trainer_config.grad_norm_clip)
         optimizer.step()
 
         if iter_num % 10 == 0:
@@ -163,7 +238,7 @@ def main():
         iter_time = tnow
 
         # termination conditions
-        if config.trainer.max_iters is not None and iter_num >= config.trainer.max_iters:
+        if trainer_config.max_iters is not None and iter_num >= config.trainer.max_iters:
             break
 
 
