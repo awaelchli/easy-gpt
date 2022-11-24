@@ -9,7 +9,6 @@ from torch.utils.data import Dataset
 from torch.utils.data.dataloader import DataLoader
 
 from mingpt.model import GPT
-from mingpt.utils import CfgNode as CN
 import functools
 from lightning_lite import seed_everything
 from lightning_lite.lite import LightningLite
