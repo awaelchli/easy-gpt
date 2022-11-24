@@ -15,8 +15,6 @@ import torch
 import torch.nn as nn
 from torch.nn import functional as F
 
-from mingpt.utils import CfgNode as CN
-
 
 class NewGELU(nn.Module):
     """
