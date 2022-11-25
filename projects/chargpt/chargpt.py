@@ -83,7 +83,7 @@ model_config = GPTConfig(
 
 trainer_config = TrainerConfig(
     num_workers = 4,
-    max_iters = -1,
+    max_iters = 100,
     block_size = 128,
     batch_size = 1,
     learning_rate = 3e-4,
@@ -208,6 +208,8 @@ def main():
         # termination conditions
         if trainer_config.max_iters != -1 and iter_num >= trainer_config.max_iters:
             break
+
+    print(torch.cuda.memory_summary())
 
 
 if __name__ == '__main__':
