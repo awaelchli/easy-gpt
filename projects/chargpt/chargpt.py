@@ -157,7 +157,7 @@ def main():
         model = GPT(model_config)
     model = lite.setup_module(model)
 
-    apply_activation_checkpointing(model, checkpoint_wraper_fn=wrapper, check_fn=check_fn)
+    apply_activation_checkpointing(model, checkpoint_wrapper_fn=wrapper, check_fn=check_fn)
 
     # TODO: support multiple param groups for FSDP
     # optimizer = model.configure_optimizers(config.trainer)
