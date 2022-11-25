@@ -48,13 +48,7 @@ class GPTConfig:
                 'gpt2-medium':  dict(n_layer=24, n_head=16, n_embd=1024), # 350M params
                 'gpt2-large':   dict(n_layer=36, n_head=20, n_embd=1280), # 774M params
                 'gpt2-xl':      dict(n_layer=48, n_head=25, n_embd=1600), # 1558M params
-                # Gophers
-                'gopher-44m':   dict(n_layer=8, n_head=16, n_embd=512),
-                # (there are a number more...)
-                # I made these tiny models up
-                'gpt-mini':     dict(n_layer=6, n_head=6, n_embd=192),
-                'gpt-micro':    dict(n_layer=4, n_head=4, n_embd=128),
-                'gpt-nano':     dict(n_layer=3, n_head=3, n_embd=48),
+                'gpt2-xxl':      dict(n_layer=15, n_head=16, n_embd=3072), # ...
             }[self.model_type]
             self.n_layer=values["n_layer"]
             self.n_head=values["n_head"]
@@ -76,7 +70,7 @@ class TrainerConfig:
 
 
 model_config = GPTConfig(
-    model_type = 'gpt2-xl',
+    model_type = 'gpt2-xxl',
     vocab_size = None,
     block_size =  128,
     embd_pdrop = 0.1,
@@ -89,7 +83,7 @@ trainer_config = TrainerConfig(
     num_workers = 4,
     max_iters = 100,
     block_size = 128,
-    batch_size = 32,
+    batch_size = 1,
     learning_rate = 3e-4,
     betas = (0.9, 0.95),
     weight_decay = 0.1, # only applied on matmul weights
