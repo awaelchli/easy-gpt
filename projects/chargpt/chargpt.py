@@ -165,7 +165,7 @@ def main():
         train_dataset,
         # TODO: fix this in Lite
         # sampler=torch.utils.data.RandomSampler(train_dataset, replacement=True, num_samples=int(1e10)),
-        # shuffle=True,
+        shuffle=True,
         pin_memory=True,
         batch_size=trainer_config.batch_size,
         num_workers=trainer_config.num_workers,
