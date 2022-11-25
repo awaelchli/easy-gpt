@@ -100,14 +100,10 @@ class CharDataset(Dataset):
 
     def __init__(self, data, block_size):
         self.block_size = block_size
-
         chars = sorted(list(set(data)))
-        data_size, vocab_size = len(data), len(chars)
-        print('data has %d characters, %d unique.' % (data_size, vocab_size))
-
         self.stoi = { ch:i for i,ch in enumerate(chars) }
         self.itos = { i:ch for i,ch in enumerate(chars) }
-        self.vocab_size = vocab_size
+        self.vocab_size = len(chars)
         self.data = data
 
     def get_vocab_size(self):
@@ -136,7 +132,8 @@ def main():
     auto_wrap_policy = functools.partial(transformer_auto_wrap_policy, transformer_layer_cls={Block})
     # TODO: precision 16 and cpu offload hangs
     # TODO: error messaging for cpu-offload + wrap policy
-    lite = LightningLite(accelerator="cuda", devices=4, precision=16, strategy=FSDPStrategy(auto_wrap_policy=auto_wrap_policy, backward_prefetch=BackwardPrefetch.BACKWARD_PRE)) # cpu_offload=CPUOffload(offload_params=True)))
+    # lite = LightningLite(accelerator="cuda", devices=4, precision=16, strategy=FSDPStrategy(auto_wrap_policy=auto_wrap_policy, backward_prefetch=BackwardPrefetch.BACKWARD_PRE))
+    lite = LightningLite(accelerator="cuda", devices=-1, precision=32, strategy=FSDPStrategy(cpu_offload=CPUOffload(offload_params=True)))
     lite.launch()
 
     # construct the training dataset
@@ -209,6 +206,7 @@ def main():
         if trainer_config.max_iters != -1 and iter_num >= trainer_config.max_iters:
             break
 
+    # For optimal memory throughput, make sure the summary shows 0 cudaMalloc retries and otherwise try lowering the batch size.
     print(torch.cuda.memory_summary())
 
 
