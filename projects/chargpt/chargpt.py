@@ -132,8 +132,7 @@ def main():
     auto_wrap_policy = functools.partial(transformer_auto_wrap_policy, transformer_layer_cls={Block})
     # TODO: precision 16 and cpu offload hangs
     # TODO: error messaging for cpu-offload + wrap policy
-    # lite = LightningLite(accelerator="cuda", devices=4, precision=16, strategy=FSDPStrategy(auto_wrap_policy=auto_wrap_policy, backward_prefetch=BackwardPrefetch.BACKWARD_PRE))
-    lite = LightningLite(accelerator="cuda", devices=-1, precision=32, strategy=FSDPStrategy(cpu_offload=CPUOffload(offload_params=True)))
+    lite = LightningLite(accelerator="cuda", devices=4, precision=16, strategy=FSDPStrategy(auto_wrap_policy=auto_wrap_policy, backward_prefetch=BackwardPrefetch.BACKWARD_PRE, cpu_offload=CPUOffload(offload_params=True)))
     lite.launch()
 
     # construct the training dataset
