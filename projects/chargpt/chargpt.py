@@ -15,7 +15,11 @@ from lightning_lite.lite import LightningLite
 from lightning_lite.strategies.fsdp import FSDPStrategy
 from torch.distributed.fsdp.wrap import transformer_auto_wrap_policy
 from torch.distributed.fsdp import CPUOffload, BackwardPrefetch
-
+from torch.distributed.algorithms._checkpoint.checkpoint_wrapper import (
+    checkpoint_wrapper,
+    CheckpointImpl,
+    apply_activation_checkpointing_wrapper
+)
 
 @dataclass
 class GPTConfig:
@@ -130,9 +134,12 @@ def main():
     seed_everything(trainer_config.seed)
 
     auto_wrap_policy = functools.partial(transformer_auto_wrap_policy, transformer_layer_cls={Block})
+    check_fn = lambda submodule: isinstance(submodule, Block)
+    wrapper = functools.partial(checkpoint_wrapper, offload_to_cpu=False, checkpoint_impl=CheckpointImpl.NO_REENTRANT)
+
     # TODO: precision 16 and cpu offload hangs
     # TODO: error messaging for cpu-offload + wrap policy
-    lite = LightningLite(accelerator="cuda", devices=4, precision=32, strategy=FSDPStrategy(auto_wrap_policy=auto_wrap_policy, backward_prefetch=BackwardPrefetch.BACKWARD_PRE, cpu_offload=CPUOffload(offload_params=True)))
+    lite = LightningLite(accelerator="cuda", devices=4, precision=16, strategy=FSDPStrategy(auto_wrap_policy=auto_wrap_policy, backward_prefetch=BackwardPrefetch.BACKWARD_PRE))
     lite.launch()
 
     # construct the training dataset
@@ -149,6 +156,8 @@ def main():
     with lite.sharded_model():
         model = GPT(model_config)
     model = lite.setup_module(model)
+
+    apply_activation_checkpointing_wrapper(model, checkpoint_wraper_fn=wrapper, check_fn=check_fn)
 
     # TODO: support multiple param groups for FSDP
     # optimizer = model.configure_optimizers(config.trainer)
