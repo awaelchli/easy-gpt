@@ -82,7 +82,7 @@ trainer_config = TrainerConfig(
     num_workers=4,
     max_iters=100,
     block_size=128,
-    batch_size=1,
+    batch_size=64,
     learning_rate=3e-4,
     betas=(0.9, 0.95),
     weight_decay=0.1,  # only applied on matmul weights
@@ -161,7 +161,7 @@ def main():
         model = GPT(model_config)
     model = lite.setup_module(model)
 
-    lite.print(f"Number of parameters: {model.num_parameters() / 1e6:.1f} M")
+    lite.print(f"Number of parameters: {model.num_parameters / 1e6:.1f} M")
 
     apply_activation_checkpointing(
         model, checkpoint_wrapper_fn=wrapper, check_fn=check_fn
