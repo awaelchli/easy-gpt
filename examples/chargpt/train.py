@@ -8,7 +8,7 @@ import time
 import torch
 from lightning_lite import seed_everything
 from lightning_lite.lite import LightningLite
-from lightning_lite.strategies.fsdp import FSDPStrategy
+from lightning_lite.strategies import FSDPStrategy, DeepSpeedStrategy
 from torch.distributed.algorithms._checkpoint.checkpoint_wrapper import (
     CheckpointImpl, apply_activation_checkpointing, checkpoint_wrapper)
 from torch.distributed.fsdp import BackwardPrefetch, CPUOffload
@@ -74,24 +74,22 @@ class CharDataset(Dataset):
 def main():
     seed_everything(trainer_config.seed)
 
-    auto_wrap_policy = functools.partial(
-        transformer_auto_wrap_policy, transformer_layer_cls={Block}
-    )
-    check_fn = lambda submodule: isinstance(submodule, Block)
-    wrapper = functools.partial(
-        checkpoint_wrapper,
-        offload_to_cpu=False,
-        checkpoint_impl=CheckpointImpl.NO_REENTRANT,
-    )
+    # auto_wrap_policy = functools.partial(
+    #     transformer_auto_wrap_policy, transformer_layer_cls={Block}
+    # )
+    # check_fn = lambda submodule: isinstance(submodule, Block)
+    # wrapper = functools.partial(
+    #     checkpoint_wrapper,
+    #     offload_to_cpu=False,
+    #     checkpoint_impl=CheckpointImpl.NO_REENTRANT,
+    # )
 
     # TODO: precision 16 and cpu offload hangs
     lite = LightningLite(
         accelerator="cuda",
         devices=4,
         precision=16,
-        strategy=FSDPStrategy(
-            auto_wrap_policy=auto_wrap_policy,
-            backward_prefetch=BackwardPrefetch.BACKWARD_PRE,
+        strategy=DeepSpeedStrategy(stage=3
         ),
     )
     lite.launch()
@@ -111,20 +109,20 @@ def main():
     # setup the model and optimizer
     with lite.sharded_model():
         model = GPT(model_config)
-    model = lite.setup_module(model)
+    # model = lite.setup_module(model)
 
     lite.print(f"Number of parameters: {model.num_parameters / 1e6:.1f} M")
 
-    apply_activation_checkpointing(
-        model, checkpoint_wrapper_fn=wrapper, check_fn=check_fn
-    )
+    # apply_activation_checkpointing(
+    #     model, checkpoint_wrapper_fn=wrapper, check_fn=check_fn
+    # )
 
     # TODO: support multiple param groups for FSDP
     # optimizer = model.configure_optimizers(config.trainer)
     optimizer = torch.optim.AdamW(
         model.parameters(), lr=trainer_config.learning_rate, betas=trainer_config.betas
     )
-    optimizer = lite.setup_optimizers(optimizer)
+    model, optimizer = lite.setup(model, optimizer)
 
     train_loader = DataLoader(
         train_dataset,
