@@ -21,7 +21,7 @@ from mingpt.config import GPTConfig, TrainerConfig
 
 
 model_config = GPTConfig(
-    model_type="gpt2-xl",
+    model_type="gpt2-large",
     vocab_size=None,
     block_size=128,
     embd_pdrop=0.1,
