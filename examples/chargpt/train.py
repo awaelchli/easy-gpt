@@ -9,6 +9,7 @@ import torch
 from lightning_lite import seed_everything
 from lightning_lite.lite import LightningLite
 from lightning_lite.strategies.fsdp import FSDPStrategy
+from lightning_lite.strategies import STRATEGY_REGISTRY
 from torch.distributed.algorithms._checkpoint.checkpoint_wrapper import (
     CheckpointImpl, apply_activation_checkpointing, checkpoint_wrapper)
 from torch.distributed.fsdp import BackwardPrefetch, CPUOffload
@@ -39,6 +40,23 @@ trainer_config = TrainerConfig(
     betas=(0.9, 0.95),
     weight_decay=0.1,  # only applied on matmul weights
     grad_norm_clip=1.0,
+)
+
+auto_wrap_policy = functools.partial(
+        transformer_auto_wrap_policy, transformer_layer_cls={Block}
+    )
+check_fn = lambda submodule: isinstance(submodule, Block)
+wrapper = functools.partial(
+    checkpoint_wrapper,
+    offload_to_cpu=False,
+    checkpoint_impl=CheckpointImpl.NO_REENTRANT,
+)
+STRATEGY_REGISTRY.register(
+    name="fsdp_gpt", 
+    strategy=FSDPStrategy, 
+    description="FSDP strategy with memory optimizations enabled for GPT large scale pretraining.", 
+    auto_wrap_policy=auto_wrap_policy, 
+    backward_prefetch=BackwardPrefetch.BACKWARD_PRE
 )
 
 
@@ -74,25 +92,12 @@ class CharDataset(Dataset):
 def main():
     seed_everything(trainer_config.seed)
 
-    auto_wrap_policy = functools.partial(
-        transformer_auto_wrap_policy, transformer_layer_cls={Block}
-    )
-    check_fn = lambda submodule: isinstance(submodule, Block)
-    wrapper = functools.partial(
-        checkpoint_wrapper,
-        offload_to_cpu=False,
-        checkpoint_impl=CheckpointImpl.NO_REENTRANT,
-    )
-
     # TODO: precision 16 and cpu offload hangs
     lite = LightningLite(
         accelerator="cuda",
-        devices=4,
+        devices=-1,
         precision=16,
-        strategy=FSDPStrategy(
-            auto_wrap_policy=auto_wrap_policy,
-            backward_prefetch=BackwardPrefetch.BACKWARD_PRE,
-        ),
+        strategy="fsdp_gpt",
     )
     lite.launch()
 
