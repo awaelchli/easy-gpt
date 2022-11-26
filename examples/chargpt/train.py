@@ -88,7 +88,7 @@ def main():
         strategy=FSDPStrategy(
             auto_wrap_policy=auto_wrap_policy,
             backward_prefetch=BackwardPrefetch.BACKWARD_PRE,
-            activation_checkpointing=[Block],
+            activation_checkpointing=Block,
         ),
     )
     lite.launch()
