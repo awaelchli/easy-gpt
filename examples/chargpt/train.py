@@ -20,6 +20,8 @@ from mingpt.model import GPT, Block
 from mingpt.config import GPTConfig, TrainerConfig
 
 
+
+
 model_config = GPTConfig(
     model_type="gpt2-xl",
     vocab_size=None,
@@ -77,12 +79,6 @@ def main():
     auto_wrap_policy = functools.partial(
         transformer_auto_wrap_policy, transformer_layer_cls={Block}
     )
-    check_fn = lambda submodule: isinstance(submodule, Block)
-    wrapper = functools.partial(
-        checkpoint_wrapper,
-        offload_to_cpu=False,
-        checkpoint_impl=CheckpointImpl.NO_REENTRANT,
-    )
 
     # TODO: precision 16 and cpu offload hangs
     lite = LightningLite(
@@ -92,6 +88,7 @@ def main():
         strategy=FSDPStrategy(
             auto_wrap_policy=auto_wrap_policy,
             backward_prefetch=BackwardPrefetch.BACKWARD_PRE,
+            activation_checkpointing=[Block],
         ),
     )
     lite.launch()
@@ -114,10 +111,6 @@ def main():
     model = lite.setup_module(model)
 
     lite.print(f"Number of parameters: {model.num_parameters / 1e6:.1f} M")
-
-    apply_activation_checkpointing(
-        model, checkpoint_wrapper_fn=wrapper, check_fn=check_fn
-    )
 
     # TODO: support multiple param groups for FSDP
     # optimizer = model.configure_optimizers(config.trainer)
